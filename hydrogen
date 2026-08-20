@@ -1,0 +1,2248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag & Drop Email Designer - GB Mailer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --builder-bg: #f5f5f5;
+            --sidebar-width: 280px;
+            --properties-width: 320px;
+            --toolbar-height: 60px;
+            --canvas-bg: #e8e8e8;
+            --element-hover: #e3f2fd;
+            --element-selected: #bbdefb;
+            --primary-color: #4f46e5;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--builder-bg);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Top Toolbar */
+        .builder-toolbar {
+            height: var(--toolbar-height);
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        .builder-toolbar .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .builder-toolbar .toolbar-center {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .builder-toolbar .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .builder-toolbar .btn {
+            padding: 8px 15px;
+            font-size: 14px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .builder-toolbar .btn i {
+            font-size: 16px;
+        }
+
+        .template-name-input {
+            border: 1px solid #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        /* Main Layout */
+        .builder-container {
+            display: flex;
+            margin-top: var(--toolbar-height);
+            height: calc(100vh - var(--toolbar-height));
+        }
+
+        /* Left Sidebar */
+        .builder-sidebar {
+            width: var(--sidebar-width);
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+
+        .sidebar-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .sidebar-tab.active {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .sidebar-tab:hover {
+            background: #f5f5f5;
+        }
+
+        .sidebar-content {
+            padding: 15px;
+        }
+
+        .element-group {
+            margin-bottom: 25px;
+        }
+
+        .element-group-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #999;
+            font-weight: 600;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .element-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: grab;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .element-item:hover {
+            background: var(--element-hover);
+            border-color: #bbdefb;
+            transform: translateX(2px);
+        }
+
+        .element-item:active {
+            cursor: grabbing;
+        }
+
+        .element-item i {
+            font-size: 18px;
+            color: #666;
+        }
+
+        .element-item span {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .element-item.dragging {
+            opacity: 0.5;
+        }
+
+        /* Canvas Area */
+        .builder-canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--canvas-bg);
+            overflow: hidden;
+        }
+
+        .canvas-controls {
+            height: 50px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .device-toggle {
+            display: flex;
+            background: #f5f5f5;
+            border-radius: 6px;
+            padding: 3px;
+        }
+
+        .device-toggle button {
+            padding: 6px 15px;
+            border: none;
+            background: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .device-toggle button.active {
+            background: white;
+            color: var(--primary-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .zoom-controls button {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-controls button:hover {
+            background: #f5f5f5;
+        }
+
+        /* Email Canvas */
+        .email-canvas-wrapper {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .email-canvas {
+            width: 600px;
+            min-height: 800px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            padding: 20px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .email-canvas.mobile-view {
+            width: 375px;
+        }
+
+        .email-canvas.tablet-view {
+            width: 768px;
+        }
+
+        /* Canvas Elements */
+        .canvas-element {
+            position: relative;
+            margin-bottom: 10px;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            border-radius: 4px;
+            cursor: move;
+        }
+
+        .canvas-element:hover {
+            border-color: #90caf9;
+        }
+
+        .canvas-element.selected {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 1px var(--primary-color);
+        }
+
+        .canvas-element .element-toolbar {
+            position: absolute;
+            top: -30px;
+            right: 0;
+            display: none;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .canvas-element.selected .element-toolbar {
+            display: flex;
+        }
+
+        .canvas-element .element-toolbar button {
+            padding: 4px 8px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .canvas-element .element-toolbar button:hover {
+            background: #f5f5f5;
+            color: var(--primary-color);
+        }
+
+        .canvas-element .element-content {
+            padding: 10px;
+            min-height: 30px;
+        }
+
+        /* Drop Zone Highlight */
+        .drop-highlight {
+            background: #e3f2fd;
+            border: 2px dashed #2196f3;
+        }
+
+        .drop-indicator {
+            height: 3px;
+            background: var(--primary-color);
+            margin: 5px 0;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Right Properties Panel */
+        .builder-properties {
+            width: var(--properties-width);
+            background: white;
+            border-left: 1px solid #e0e0e0;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .properties-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            font-weight: 600;
+        }
+
+        .properties-content {
+            padding: 20px;
+        }
+
+        .property-group {
+            margin-bottom: 20px;
+        }
+
+        .property-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .property-group input,
+        .property-group select,
+        .property-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .property-group input[type="color"] {
+            height: 40px;
+            padding: 3px;
+        }
+
+        .property-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .property-row .property-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        /* Modal for image upload */
+        .image-upload-modal .modal-dialog {
+            max-width: 500px;
+        }
+
+        .image-upload-dropzone {
+            border: 2px dashed #e0e0e0;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .image-upload-dropzone:hover {
+            border-color: var(--primary-color);
+            background: #f5f5f5;
+        }
+
+        /* Loading indicator */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .builder-properties {
+                width: 250px;
+            }
+            
+            .builder-sidebar {
+                width: 220px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .builder-properties {
+                display: none;
+            }
+            
+            .builder-sidebar {
+                width: 60px;
+            }
+            
+            .element-item span {
+                display: none;
+            }
+            
+            .element-item {
+                justify-content: center;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Processing...</p>
+        </div>
+    </div>
+
+    <!-- Top Toolbar -->
+    <div class="builder-toolbar">
+        <div class="toolbar-left">
+            <button class="btn btn-light" onclick="goBack()" title="Back to Dashboard">
+                <i class="bi bi-arrow-left"></i>
+            </button>
+            <input type="text" class="template-name-input" id="templateName" 
+                   placeholder="Untitled Template" onchange="updateTemplateName()">
+        </div>
+        
+        <div class="toolbar-center">
+            <button class="btn btn-light" onclick="undo()" title="Undo (Ctrl+Z)">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </button>
+            <button class="btn btn-light" onclick="redo()" title="Redo (Ctrl+Y)">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+        
+        <div class="toolbar-right">
+            <button class="btn btn-outline-secondary" onclick="showPreview()" title="Preview">
+                <i class="bi bi-eye"></i> Preview
+            </button>
+            <button class="btn btn-outline-primary" onclick="exportHTML()" title="Export HTML">
+                <i class="bi bi-file-earmark-code"></i> Export HTML
+            </button>
+            <button class="btn btn-outline-success" onclick="saveTemplate()" title="Save Template">
+                <i class="bi bi-save"></i> Save
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Builder Container -->
+    <div class="builder-container">
+        <!-- Left Sidebar -->
+        <div class="builder-sidebar">
+            <div class="sidebar-tabs">
+                <button class="sidebar-tab active" data-tab="elements" onclick="switchTab('elements')">
+                    <i class="bi bi-grid"></i> Elements
+                </button>
+                <button class="sidebar-tab" data-tab="layout" onclick="switchTab('layout')">
+                    <i class="bi bi-layout-three-columns"></i> Layout
+                </button>
+                <button class="sidebar-tab" data-tab="templates" onclick="switchTab('templates')">
+                    <i class="bi bi-collection"></i> Templates
+                </button>
+            </div>
+            
+            <!-- Elements Tab -->
+            <div class="sidebar-content" id="elementsTab">
+                <div class="element-group">
+                    <div class="element-group-title">Content</div>
+                    <div class="element-item" draggable="true" data-type="text" onclick="addElement('text')">
+                        <i class="bi bi-text-paragraph"></i>
+                        <span>Text Block</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="heading" onclick="addElement('heading')">
+                        <i class="bi bi-type-h1"></i>
+                        <span>Heading</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="button" onclick="addElement('button')">
+                        <i class="bi bi-hand-index"></i>
+                        <span>Button</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="image" onclick="addElement('image')">
+                        <i class="bi bi-image"></i>
+                        <span>Image</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="divider" onclick="addElement('divider')">
+                        <i class="bi bi-hr"></i>
+                        <span>Divider</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="spacer" onclick="addElement('spacer')">
+                        <i class="bi bi-arrows-expand-vertical"></i>
+                        <span>Spacer</span>
+                    </div>
+                </div>
+                
+                <div class="element-group">
+                    <div class="element-group-title">Dynamic Content</div>
+                    <div class="element-item" draggable="true" data-type="personalization" onclick="addElement('personalization')">
+                        <i class="bi bi-person-badge"></i>
+                        <span>Personalization</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="product-grid" onclick="addElement('product-grid')">
+                        <i class="bi bi-grid-3x3"></i>
+                        <span>Product Grid</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="countdown" onclick="addElement('countdown')">
+                        <i class="bi bi-clock"></i>
+                        <span>Countdown Timer</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="coupon" onclick="addElement('coupon')">
+                        <i class="bi bi-ticket-perforated"></i>
+                        <span>Coupon Code</span>
+                    </div>
+                </div>
+                
+                <div class="element-group">
+                    <div class="element-group-title">Social & Media</div>
+                    <div class="element-item" draggable="true" data-type="social" onclick="addElement('social')">
+                        <i class="bi bi-share"></i>
+                        <span>Social Links</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="video" onclick="addElement('video')">
+                        <i class="bi bi-play-btn"></i>
+                        <span>Video Embed</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="html" onclick="addElement('html')">
+                        <i class="bi bi-code-square"></i>
+                        <span>Custom HTML</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Layout Tab -->
+            <div class="sidebar-content" id="layoutTab" style="display: none;">
+                <div class="element-group">
+                    <div class="element-group-title">Layout Blocks</div>
+                    <div class="element-item" draggable="true" data-type="1-column" onclick="addElement('1-column')">
+                        <i class="bi bi-layout-one-column"></i>
+                        <span>1 Column</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="2-columns" onclick="addElement('2-columns')">
+                        <i class="bi bi-layout-two-columns"></i>
+                        <span>2 Columns</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="3-columns" onclick="addElement('3-columns')">
+                        <i class="bi bi-layout-three-columns"></i>
+                        <span>3 Columns</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="container" onclick="addElement('container')">
+                        <i class="bi bi-bounding-box"></i>
+                        <span>Container</span>
+                    </div>
+                </div>
+                
+                <div class="element-group">
+                    <div class="element-group-title">Pre-built Sections</div>
+                    <div class="element-item" draggable="true" data-type="header-section" onclick="addElement('header-section')">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Email Header</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="footer-section" onclick="addElement('footer-section')">
+                        <i class="bi bi-file-earmark-arrow-down"></i>
+                        <span>Email Footer</span>
+                    </div>
+                    <div class="element-item" draggable="true" data-type="hero-section" onclick="addElement('hero-section')">
+                        <i class="bi bi-star"></i>
+                        <span>Hero Section</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Templates Tab -->
+            <div class="sidebar-content" id="templatesTab" style="display: none;">
+                <div class="element-group">
+                    <div class="element-group-title">Starter Templates</div>
+                    <div class="template-card" onclick="loadStarterTemplate('welcome')">
+                        <div class="template-preview-mini">Welcome</div>
+                        <span>Welcome Email</span>
+                    </div>
+                    <div class="template-card" onclick="loadStarterTemplate('newsletter')">
+                        <div class="template-preview-mini">News</div>
+                        <span>Newsletter</span>
+                    </div>
+                    <div class="template-card" onclick="loadStarterTemplate('promo')">
+                        <div class="template-preview-mini">Sale</div>
+                        <span>Promotional</span>
+                    </div>
+                    <div class="template-card" onclick="loadStarterTemplate('followup')">
+                        <div class="template-preview-mini">Follow</div>
+                        <span>Follow-up</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Canvas Area -->
+        <div class="builder-canvas-area">
+            <div class="canvas-controls">
+                <div class="device-toggle">
+                    <button class="active" data-device="desktop" onclick="setDevice('desktop')">
+                        <i class="bi bi-display"></i>
+                    </button>
+                    <button data-device="tablet" onclick="setDevice('tablet')">
+                        <i class="bi bi-tablet"></i>
+                    </button>
+                    <button data-device="mobile" onclick="setDevice('mobile')">
+                        <i class="bi bi-phone"></i>
+                    </button>
+                </div>
+                
+                <div class="zoom-controls">
+                    <button onclick="zoomOut()" title="Zoom Out">
+                        <i class="bi bi-zoom-out"></i>
+                    </button>
+                    <span id="zoomLevel">100%</span>
+                    <button onclick="zoomIn()" title="Zoom In">
+                        <i class="bi bi-zoom-in"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="email-canvas-wrapper" id="canvasWrapper">
+                <div class="email-canvas" id="emailCanvas">
+                    <!-- Elements will be added here -->
+                    <div class="empty-canvas-message" id="emptyCanvasMessage">
+                        <i class="bi bi-mouse" style="font-size: 3rem; color: #ccc;"></i>
+                        <h5>Drag elements here</h5>
+                        <p class="text-muted">Or click an element from the sidebar to add it</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Properties Panel -->
+        <div class="builder-properties">
+            <div class="properties-header">
+                <i class="bi bi-sliders"></i> Properties
+            </div>
+            <div class="properties-content" id="propertiesContent">
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-cursor" style="font-size: 2rem;"></i>
+                    <p class="mt-3">Select an element to edit its properties</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Upload Modal -->
+    <div class="modal fade image-upload-modal" id="imageUploadModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="image-upload-dropzone" onclick="document.getElementById('imageFileInput').click()">
+                        <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #666;"></i>
+                        <p class="mt-3">Click to upload image</p>
+                        <p class="text-muted small">or drag and drop here</p>
+                    </div>
+                    <input type="file" id="imageFileInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                    
+                    <div class="mt-3">
+                        <label class="form-label">Or use image URL</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="imageUrlInput" placeholder="https://example.com/image.jpg">
+                            <button class="btn btn-primary" onclick="addImageFromUrl()">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Picker Modal -->
+    <div class="modal fade" id="productPickerModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Products</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col">
+                            <input type="text" class="form-control" id="productSearch" placeholder="Search products...">
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-primary" onclick="addProductManually()">
+                                <i class="bi bi-plus"></i> Add Product
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row" id="productsList">
+                        <!-- Products will be listed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="modal fade" id="previewModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Email Preview</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <iframe id="previewFrame" style="width: 100%; height: 600px; border: none;"></iframe>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" onclick="sendTestEmail()">
+                        <i class="bi bi-send"></i> Send Test Email
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Test Email Modal -->
+    <div class="modal fade" id="testEmailModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Send Test Email</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Send to Email Address</label>
+                        <input type="email" class="form-control" id="testEmailAddress" placeholder="test@example.com">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="sendTest()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include required libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+    <script>
+// ============================================
+// DRAG & DROP EMAIL DESIGNER - CORE ENGINE
+// ============================================
+
+class EmailDesigner {
+    constructor() {
+        this.canvas = document.getElementById('emailCanvas');
+        this.selectedElement = null;
+        this.undoStack = [];
+        this.redoStack = [];
+        this.currentDevice = 'desktop';
+        this.zoomLevel = 100;
+        this.elementCounter = 0;
+        this.templateName = 'Untitled Template';
+        this.products = [];
+        this.personalizationVars = [
+            '{{first_name}}',
+            '{{last_name}}',
+            '{{email}}',
+            '{{company}}',
+            '{{unsubscribe_link}}',
+            '{{phone}}',
+            '{{address}}'
+        ];
+        
+        this.init();
+    }
+    
+    init() {
+        this.setupDragAndDrop();
+        this.setupKeyboardShortcuts();
+        this.loadFromLocalStorage();
+        this.updateUndoRedoButtons();
+    }
+    
+    // ============ DRAG & DROP SYSTEM ============
+    setupDragAndDrop() {
+        // Make sidebar elements draggable
+        document.querySelectorAll('.element-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('elementType', item.dataset.type);
+                item.classList.add('dragging');
+            });
+            
+            item.addEventListener('dragend', (e) => {
+                item.classList.remove('dragging');
+            });
+        });
+        
+        // Canvas drop handling
+        this.canvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const dropZone = this.getDropZone(e.target);
+            if (dropZone) {
+                this.highlightDropZone(dropZone);
+            }
+        });
+        
+        this.canvas.addEventListener('dragleave', (e) => {
+            this.clearDropHighlights();
+        });
+        
+        this.canvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const elementType = e.dataTransfer.getData('elementType');
+            const dropZone = this.getDropZone(e.target);
+            
+            if (elementType && dropZone) {
+                this.createElement(elementType, dropZone);
+            }
+            this.clearDropHighlights();
+        });
+        
+        // Enable reordering of existing elements
+        this.canvas.addEventListener('dragover', (e) => {
+            const draggedElement = e.target.closest('.canvas-element');
+            if (draggedElement && draggedElement !== this.selectedElement) {
+                e.preventDefault();
+                this.showDropIndicator(draggedElement, e);
+            }
+        });
+    }
+    
+    getDropZone(target) {
+        // Find the closest drop zone
+        if (target.classList.contains('canvas-element')) {
+            return target;
+        } else if (target.classList.contains('column-content')) {
+            return target.closest('.canvas-element');
+        } else if (target.classList.contains('email-canvas')) {
+            return this.canvas;
+        }
+        return this.canvas;
+    }
+    
+    highlightDropZone(dropZone) {
+        this.clearDropHighlights();
+        if (dropZone) {
+            dropZone.classList.add('drop-highlight');
+        }
+    }
+    
+    clearDropHighlights() {
+        document.querySelectorAll('.drop-highlight').forEach(el => {
+            el.classList.remove('drop-highlight');
+        });
+    }
+    
+    showDropIndicator(targetElement, event) {
+        const indicator = document.createElement('div');
+        indicator.className = 'drop-indicator';
+        
+        const rect = targetElement.getBoundingClientRect();
+        const mouseY = event.clientY;
+        const elementMiddle = rect.top + (rect.height / 2);
+        
+        if (mouseY < elementMiddle) {
+            targetElement.parentNode.insertBefore(indicator, targetElement);
+        } else {
+            targetElement.parentNode.insertBefore(indicator, targetElement.nextSibling);
+        }
+    }
+    
+    // ============ ELEMENT CREATION ============
+    createElement(type, targetZone) {
+        const element = this.buildElement(type);
+        if (!element) return;
+        
+        // Save state for undo
+        this.saveState();
+        
+        // Insert into canvas
+        if (targetZone === this.canvas) {
+            this.canvas.appendChild(element);
+        } else if (targetZone.classList.contains('column-content')) {
+            targetZone.appendChild(element);
+        } else if (targetZone.classList.contains('canvas-element')) {
+            targetZone.parentNode.insertBefore(element, targetZone.nextSibling);
+        }
+        
+        // Remove empty message if present
+        const emptyMessage = document.getElementById('emptyCanvasMessage');
+        if (emptyMessage) {
+            emptyMessage.remove();
+        }
+        
+        // Select the new element
+        this.selectElement(element);
+        
+        // Enable reordering
+        this.enableElementReordering(element);
+        
+        // Update undo/redo buttons
+        this.updateUndoRedoButtons();
+        
+        // Auto-save
+        this.saveToLocalStorage();
+    }
+    
+    buildElement(type) {
+        this.elementCounter++;
+        const elementId = `element-${this.elementCounter}`;
+        const element = document.createElement('div');
+        element.className = 'canvas-element';
+        element.id = elementId;
+        element.dataset.type = type;
+        
+        switch(type) {
+            case 'text':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                        <button onclick="designer.moveElement('${elementId}', 'up')" title="Move Up"><i class="bi bi-arrow-up"></i></button>
+                        <button onclick="designer.moveElement('${elementId}', 'down')" title="Move Down"><i class="bi bi-arrow-down"></i></button>
+                    </div>
+                    <div class="element-content" contenteditable="true">
+                        <p>Click to edit this text. Add your content here.</p>
+                    </div>
+                `;
+                break;
+                
+            case 'heading':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                        <button onclick="designer.moveElement('${elementId}', 'up')" title="Move Up"><i class="bi bi-arrow-up"></i></button>
+                        <button onclick="designer.moveElement('${elementId}', 'down')" title="Move Down"><i class="bi bi-arrow-down"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <h2 style="margin: 0; color: #333;">Your Heading Here</h2>
+                    </div>
+                `;
+                break;
+                
+            case 'button':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content text-center">
+                        <a href="#" class="email-button" style="display: inline-block; padding: 12px 30px; background: #4f46e5; color: white; text-decoration: none; border-radius: 5px; font-weight: 600;">
+                            Click Here
+                        </a>
+                    </div>
+                `;
+                break;
+                
+            case 'image':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.changeImage('${elementId}')" title="Change Image"><i class="bi bi-image"></i></button>
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content text-center">
+                        <img src="https://via.placeholder.com/600x300" alt="Placeholder" style="max-width: 100%; height: auto;">
+                    </div>
+                `;
+                break;
+                
+            case 'divider':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+                    </div>
+                `;
+                break;
+                
+            case 'spacer':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <div style="height: 30px;"></div>
+                    </div>
+                `;
+                break;
+                
+            case 'personalization':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <p>Hello <strong>{{first_name}}</strong>,</p>
+                    </div>
+                `;
+                break;
+                
+            case 'social':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content text-center">
+                        <div style="display: flex; justify-content: center; gap: 15px;">
+                            <a href="#" style="color: #3b5998; font-size: 24px;"><i class="bi bi-facebook"></i></a>
+                            <a href="#" style="color: #1da1f2; font-size: 24px;"><i class="bi bi-twitter"></i></a>
+                            <a href="#" style="color: #e4405f; font-size: 24px;"><i class="bi bi-instagram"></i></a>
+                            <a href="#" style="color: #0a66c2; font-size: 24px;"><i class="bi bi-linkedin"></i></a>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'html':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <textarea class="custom-html-input" style="width: 100%; min-height: 100px; padding: 10px; border: 1px solid #e0e0e0; border-radius: 4px;" placeholder="Enter custom HTML here..."></textarea>
+                    </div>
+                `;
+                break;
+                
+            case '1-column':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="column-content" style="min-height: 80px; border: 1px dashed #e0e0e0; padding: 10px;">
+                                    <p class="text-muted text-center">Drop elements here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case '2-columns':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="column-content" style="min-height: 80px; border: 1px dashed #e0e0e0; padding: 10px;">
+                                    <p class="text-muted text-center">Drop elements here</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="column-content" style="min-height: 80px; border: 1px dashed #e0e0e0; padding: 10px;">
+                                    <p class="text-muted text-center">Drop elements here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case '3-columns':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <div class="row">
+                            <div class="col-4">
+                                <div class="column-content" style="min-height: 80px; border: 1px dashed #e0e0e0; padding: 10px;">
+                                    <p class="text-muted text-center">Column 1</p>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="column-content" style="min-height: 80px; border: 1px dashed #e0e0e0; padding: 10px;">
+                                    <p class="text-muted text-center">Column 2</p>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="column-content" style="min-height: 80px; border: 1px dashed #e0e0e0; padding: 10px;">
+                                    <p class="text-muted text-center">Column 3</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'product-grid':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.openProductPicker('${elementId}')" title="Add Products"><i class="bi bi-plus-circle"></i></button>
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <div class="row product-grid">
+                            ${this.getProductGridHTML()}
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'countdown':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content text-center">
+                        <div class="countdown-timer" data-target="2024-12-31T23:59:59">
+                            <div style="display: flex; justify-content: center; gap: 20px;">
+                                <div><h2 class="countdown-days">0</h2><small>Days</small></div>
+                                <div><h2 class="countdown-hours">0</h2><small>Hours</small></div>
+                                <div><h2 class="countdown-minutes">0</h2><small>Minutes</small></div>
+                                <div><h2 class="countdown-seconds">0</h2><small>Seconds</small></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'video':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <div class="video-placeholder" style="background: #f5f5f5; padding: 40px; text-align: center; border-radius: 8px;">
+                            <i class="bi bi-play-circle" style="font-size: 3rem; color: #999;"></i>
+                            <p>Video placeholder - Enter video URL in properties</p>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'container':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <div class="container-content" style="padding: 20px; border: 1px solid #e0e0e0; min-height: 100px; border-radius: 4px;">
+                            <p class="text-muted text-center">Container - Drop elements here</p>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'header-section':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <div style="background: #f8f9fa; padding: 20px; text-align: center; border-bottom: 3px solid #4f46e5;">
+                            <h1 style="color: #333; margin: 0;">Your Company Name</h1>
+                            <p style="color: #666; margin: 10px 0 0;">Tagline or subtitle here</p>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'footer-section':
+                element.innerHTML = `
+                    <div class="element-toolbar">
+                        <button onclick="designer.duplicateElement('${elementId}')" title="Duplicate"><i class="bi bi-copy"></i></button>
+                        <button onclick="designer.deleteElement('${elementId}')" title="Delete"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="element-content">
+                        <div style="background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+                            <p>© 2024 Your Company. All rights reserved.</p>
+                            <p>123 Main Street, City, State 12345</p>
+                            <p><a href="{{unsubscribe_link}}">Unsubscribe</a> | <a href="#">Privacy Policy</a></p>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            default:
+                return null;
+        }
+        
+        return element;
+    }
+    
+    getProductGridHTML() {
+        if (this.products.length === 0) {
+            return `
+                <div class="col-12 text-center py-4">
+                    <p class="text-muted">No products added yet. Click the + icon to add products.</p>
+                </div>
+            `;
+        }
+        
+        return this.products.map(product => `
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <img src="${product.image}" class="card-img-top" alt="${product.name}">
+                    <div class="card-body">
+                        <h6 class="card-title">${product.name}</h6>
+                        <p class="card-text text-primary fw-bold">${product.price}</p>
+                        <a href="${product.link}" class="btn btn-primary btn-sm">Buy Now</a>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // ============ ELEMENT SELECTION ============
+    selectElement(element) {
+        // Deselect previous
+        if (this.selectedElement) {
+            this.selectedElement.classList.remove('selected');
+        }
+        
+        this.selectedElement = element;
+        element.classList.add('selected');
+        
+        // Show properties
+        this.showProperties(element);
+    }
+    
+    // ============ PROPERTIES PANEL ============
+    showProperties(element) {
+        const panel = document.getElementById('propertiesContent');
+        const type = element.dataset.type;
+        
+        let propertiesHTML = '';
+        
+        // Common properties for all elements
+        propertiesHTML += `
+            <div class="property-group">
+                <label>Element Type</label>
+                <input type="text" value="${type}" disabled>
+            </div>
+            
+            <div class="property-group">
+                <label>Background Color</label>
+                <input type="color" value="#ffffff" onchange="designer.updateElementStyle('${element.id}', 'backgroundColor', this.value)">
+            </div>
+            
+            <div class="property-row">
+                <div class="property-group">
+                    <label>Padding (px)</label>
+                    <input type="number" value="10" min="0" max="100" onchange="designer.updateElementStyle('${element.id}', 'padding', this.value + 'px')">
+                </div>
+                <div class="property-group">
+                    <label>Margin (px)</label>
+                    <input type="number" value="0" min="0" max="100" onchange="designer.updateElementStyle('${element.id}', 'margin', this.value + 'px')">
+                </div>
+            </div>
+        `;
+        
+        // Type-specific properties
+        switch(type) {
+            case 'text':
+                propertiesHTML += `
+                    <div class="property-group">
+                        <label>Font Size</label>
+                        <input type="number" value="14" min="8" max="72" onchange="designer.updateTextStyle('${element.id}', 'fontSize', this.value + 'px')">
+                    </div>
+                    <div class="property-group">
+                        <label>Font Family</label>
+                        <select onchange="designer.updateTextStyle('${element.id}', 'fontFamily', this.value)">
+                            <option value="Arial">Arial</option>
+                            <option value="Helvetica">Helvetica</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Verdana">Verdana</option>
+                        </select>
+                    </div>
+                    <div class="property-group">
+                        <label>Text Color</label>
+                        <input type="color" value="#333333" onchange="designer.updateTextStyle('${element.id}', 'color', this.value)">
+                    </div>
+                    <div class="property-group">
+                        <label>Line Height</label>
+                        <input type="number" value="1.5" min="1" max="3" step="0.1" onchange="designer.updateTextStyle('${element.id}', 'lineHeight', this.value)">
+                    </div>
+                `;
+                break;
+                
+            case 'heading':
+                propertiesHTML += `
+                    <div class="property-group">
+                        <label>Heading Level</label>
+                        <select onchange="designer.changeHeadingLevel('${element.id}', this.value)">
+                            <option value="h1">H1</option>
+                            <option value="h2" selected>H2</option>
+                            <option value="h3">H3</option>
+                            <option value="h4">H4</option>
+                        </select>
+                    </div>
+                    <div class="property-group">
+                        <label>Text Color</label>
+                        <input type="color" value="#333333" onchange="designer.updateTextStyle('${element.id}', 'color', this.value)">
+                    </div>
+                    <div class="property-group">
+                        <label>Text Alignment</label>
+                        <select onchange="designer.updateTextStyle('${element.id}', 'textAlign', this.value)">
+                            <option value="left">Left</option>
+                            <option value="center">Center</option>
+                            <option value="right">Right</option>
+                        </select>
+                    </div>
+                `;
+                break;
+                
+            case 'button':
+                propertiesHTML += `
+                    <div class="property-group">
+                        <label>Button Text</label>
+                        <input type="text" value="Click Here" onchange="designer.updateButtonText('${element.id}', this.value)">
+                    </div>
+                    <div class="property-group">
+                        <label>Button URL</label>
+                        <input type="text" value="#" onchange="designer.updateButtonUrl('${element.id}', this.value)">
+                    </div>
+                    <div class="property-group">
+                        <label>Button Color</label>
+                        <input type="color" value="#4f46e5" onchange="designer.updateButtonStyle('${element.id}', 'backgroundColor', this.value)">
+                    </div>
+                    <div class="property-group">
+                        <label>Text Color</label>
+                        <input type="color" value="#ffffff" onchange="designer.updateButtonStyle('${element.id}', 'color', this.value)">
+                    </div>
+                    <div class="property-row">
+                        <div class="property-group">
+                            <label>Border Radius</label>
+                            <input type="number" value="5" min="0" max="50" onchange="designer.updateButtonStyle('${element.id}', 'borderRadius', this.value + 'px')">
+                        </div>
+                        <div class="property-group">
+                            <label>Font Size</label>
+                            <input type="number" value="16" min="8" max="48" onchange="designer.updateButtonStyle('${element.id}', 'fontSize', this.value + 'px')">
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'image':
+                propertiesHTML += `
+                    <div class="property-group">
+                        <label>Image URL</label>
+                        <input type="text" value="" onchange="designer.updateImageSrc('${element.id}', this.value)">
+                    </div>
+                    <div class="property-group">
+                        <label>Alt Text</label>
+                        <input type="text" value="" onchange="designer.updateImageAlt('${element.id}', this.value)">
+                    </div>
+                    <div class="property-group">
+                        <label>Image Width</label>
+                        <select onchange="designer.updateImageWidth('${element.id}', this.value)">
+                            <option value="100%">Full Width</option>
+                            <option value="75%">75%</option>
+                            <option value="50%">50%</option>
+                            <option value="25%">25%</option>
+                        </select>
+                    </div>
+                    <div class="property-group">
+                        <label>Image Link</label>
+                        <input type="text" placeholder="https://..." onchange="designer.updateImageLink('${element.id}', this.value)">
+                    </div>
+                `;
+                break;
+        }
+        
+        panel.innerHTML = propertiesHTML;
+    }
+    
+    // ============ STYLE UPDATES ============
+    updateElementStyle(elementId, property, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const content = element.querySelector('.element-content');
+            if (content) {
+                content.style[property] = value;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    updateTextStyle(elementId, property, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const content = element.querySelector('.element-content');
+            if (content) {
+                content.style[property] = value;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    changeHeadingLevel(elementId, level) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const oldHeading = element.querySelector('h1, h2, h3, h4');
+            if (oldHeading) {
+                const newHeading = document.createElement(level);
+                newHeading.innerHTML = oldHeading.innerHTML;
+                newHeading.style.cssText = oldHeading.style.cssText;
+                oldHeading.parentNode.replaceChild(newHeading, oldHeading);
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    updateButtonText(elementId, text) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const button = element.querySelector('.email-button');
+            if (button) {
+                button.textContent = text;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    updateButtonUrl(elementId, url) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const button = element.querySelector('.email-button');
+            if (button) {
+                button.href = url;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    updateButtonStyle(elementId, property, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const button = element.querySelector('.email-button');
+            if (button) {
+                button.style[property] = value;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    updateImageSrc(elementId, src) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const img = element.querySelector('img');
+            if (img) {
+                img.src = src;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    updateImageAlt(elementId, alt) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const img = element.querySelector('img');
+            if (img) {
+                img.alt = alt;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    updateImageWidth(elementId, width) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const img = element.querySelector('img');
+            if (img) {
+                img.style.width = width;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    updateImageLink(elementId, link) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const img = element.querySelector('img');
+            if (img) {
+                img.parentNode.href = link;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    // ============ ELEMENT OPERATIONS ============
+    duplicateElement(elementId) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const clone = element.cloneNode(true);
+            clone.id = `element-${++this.elementCounter}`;
+            clone.classList.remove('selected');
+            
+            // Clear the toolbar events in clone
+            const toolbar = clone.querySelector('.element-toolbar');
+            if (toolbar) {
+                toolbar.style.display = 'none';
+            }
+            
+            element.parentNode.insertBefore(clone, element.nextSibling);
+            this.selectElement(clone);
+            this.enableElementReordering(clone);
+            this.saveState();
+            this.saveToLocalStorage();
+        }
+    }
+    
+    deleteElement(elementId) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            if (confirm('Delete this element?')) {
+                this.saveState();
+                element.remove();
+                this.selectedElement = null;
+                document.getElementById('propertiesContent').innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-cursor" style="font-size: 2rem;"></i>
+                        <p class="mt-3">Select an element to edit its properties</p>
+                    </div>
+                `;
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    moveElement(elementId, direction) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            if (direction === 'up' && element.previousElementSibling) {
+                element.parentNode.insertBefore(element, element.previousElementSibling);
+            } else if (direction === 'down' && element.nextElementSibling) {
+                element.parentNode.insertBefore(element.nextElementSibling, element);
+            }
+            this.saveToLocalStorage();
+        }
+    }
+    
+    enableElementReordering(element) {
+        element.addEventListener('click', (e) => {
+            if (!e.target.closest('.element-toolbar')) {
+                this.selectElement(element);
+            }
+        });
+        
+        // Make content editable where applicable
+        const editableContent = element.querySelector('[contenteditable="true"]');
+        if (editableContent) {
+            editableContent.addEventListener('blur', () => {
+                this.saveToLocalStorage();
+            });
+        }
+    }
+    
+    // ============ DEVICE PREVIEW ============
+    setDevice(device) {
+        this.currentDevice = device;
+        const canvas = this.canvas;
+        
+        // Remove all device classes
+        canvas.classList.remove('mobile-view', 'tablet-view');
+        
+        // Add the appropriate class
+        if (device === 'mobile') {
+            canvas.classList.add('mobile-view');
+        } else if (device === 'tablet') {
+            canvas.classList.add('tablet-view');
+        }
+        
+        // Update buttons
+        document.querySelectorAll('.device-toggle button').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.device === device) {
+                btn.classList.add('active');
+            }
+        });
+    }
+    
+    // ============ ZOOM CONTROLS ============
+    zoomIn() {
+        if (this.zoomLevel < 150) {
+            this.zoomLevel += 10;
+            this.applyZoom();
+        }
+    }
+    
+    zoomOut() {
+        if (this.zoomLevel > 50) {
+            this.zoomLevel -= 10;
+            this.applyZoom();
+        }
+    }
+    
+    applyZoom() {
+        document.getElementById('zoomLevel').textContent = this.zoomLevel + '%';
+        this.canvas.style.transform = `scale(${this.zoomLevel / 100})`;
+        this.canvas.style.transformOrigin = 'top center';
+    }
+    
+    // ============ UNDO/REDO ============
+    saveState() {
+        this.undoStack.push(this.canvas.innerHTML);
+        this.redoStack = [];
+        this.updateUndoRedoButtons();
+        
+        // Limit undo stack to 50 states
+        if (this.undoStack.length > 50) {
+            this.undoStack.shift();
+        }
+    }
+    
+    undo() {
+        if (this.undoStack.length > 0) {
+            const currentState = this.canvas.innerHTML;
+            this.redoStack.push(currentState);
+            const previousState = this.undoStack.pop();
+            this.canvas.innerHTML = previousState;
+            this.updateUndoRedoButtons();
+            this.saveToLocalStorage();
+        }
+    }
+    
+    redo() {
+        if (this.redoStack.length > 0) {
+            const currentState = this.canvas.innerHTML;
+            this.undoStack.push(currentState);
+            const nextState = this.redoStack.pop();
+            this.canvas.innerHTML = nextState;
+            this.updateUndoRedoButtons();
+            this.saveToLocalStorage();
+        }
+    }
+    
+    updateUndoRedoButtons() {
+        // Update button states if needed
+    }
+    
+    // ============ KEYBOARD SHORTCUTS ============
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Z: Undo
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                this.undo();
+            }
+            // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y: Redo
+            else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                e.preventDefault();
+                this.redo();
+            }
+            // Delete key: Delete selected element
+            else if (e.key === 'Delete' && this.selectedElement) {
+                e.preventDefault();
+                this.deleteElement(this.selectedElement.id);
+            }
+            // Ctrl/Cmd + D: Duplicate
+            else if ((e.ctrlKey || e.metaKey) && e.key === 'd' && this.selectedElement) {
+                e.preventDefault();
+                this.duplicateElement(this.selectedElement.id);
+            }
+        });
+    }
+    
+    // ============ PRODUCT MANAGEMENT ============
+    openProductPicker(elementId) {
+        this.currentProductElement = elementId;
+        this.renderProductsList();
+        const modal = new bootstrap.Modal(document.getElementById('productPickerModal'));
+        modal.show();
+    }
+    
+    renderProductsList() {
+        const container = document.getElementById('productsList');
+        if (this.products.length === 0) {
+            container.innerHTML = `
+                <div class="col-12 text-center py-4">
+                    <p class="text-muted">No products added yet. Click "Add Product" to create one.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = this.products.map((product, index) => `
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <img src="${product.image}" class="card-img-top" alt="${product.name}" style="height: 100px; object-fit: cover;">
+                    <div class="card-body">
+                        <h6 class="card-title">${product.name}</h6>
+                        <p class="card-text text-primary fw-bold">${product.price}</p>
+                        <button class="btn btn-sm btn-primary" onclick="designer.addProductToElement('${elementId}', ${index})">
+                            Add to Grid
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    addProductManually() {
+        // Create a form for manual product addition
+        const product = {
+            name: prompt('Product name:'),
+            price: prompt('Product price:'),
+            image: prompt('Product image URL:'),
+            link: prompt('Product link:')
+        };
+        
+        if (product.name && product.image) {
+            this.products.push(product);
+            this.renderProductsList();
+        }
+    }
+    
+    addProductToElement(elementId, productIndex) {
+        const product = this.products[productIndex];
+        const element = document.getElementById(elementId);
+        if (element && product) {
+            const grid = element.querySelector('.product-grid');
+            if (grid) {
+                // Check if there's an empty message
+                const emptyMsg = grid.querySelector('.text-muted');
+                if (emptyMsg) {
+                    grid.innerHTML = '';
+                }
+                
+                const productHTML = `
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <img src="${product.image}" class="card-img-top" alt="${product.name}" style="height: 100px; object-fit: cover;">
+                            <div class="card-body">
+                                <h6 class="card-title">${product.name}</h6>
+                                <p class="card-text text-primary fw-bold">${product.price}</p>
+                                <a href="${product.link}" class="btn btn-primary btn-sm">Buy Now</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                grid.insertAdjacentHTML('beforeend', productHTML);
+                this.saveToLocalStorage();
+            }
+        }
+    }
+    
+    // ============ IMAGE HANDLING ============
+    changeImage(elementId) {
+        this.currentImageElement = elementId;
+        const modal = new bootstrap.Modal(document.getElementById('imageUploadModal'));
+        modal.show();
+    }
+    
+    handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.updateImageSrc(this.currentImageElement, e.target.result);
+                bootstrap.Modal.getInstance(document.getElementById('imageUploadModal')).hide();
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    addImageFromUrl() {
+        const url = document.getElementById('imageUrlInput').value.trim();
+        if (url && this.currentImageElement) {
+            this.updateImageSrc(this.currentImageElement, url);
+            bootstrap.Modal.getInstance(document.getElementById('imageUploadModal')).hide();
+            document.getElementById('imageUrlInput').value = '';
+        }
+    }
+    
+    // ============ EXPORT ============
+    exportHTML() {
+        const canvasHTML = this.canvas.innerHTML;
+        const fullHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${this.templateName}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="background: #f5f5f5; padding: 20px;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px;">
+        ${canvasHTML}
+    </div>
+</body>
+</html>`;
+        
+        this.downloadFile(fullHTML, `${this.templateName.toLowerCase().replace(/\s+/g, '-')}.html`, 'text/html');
+    }
+    
+    downloadFile(content, filename, type) {
+        const blob = new Blob([content], { type: type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    
+    // ============ LOCAL STORAGE ============
+    saveToLocalStorage() {
+        const data = {
+            canvasHTML: this.canvas.innerHTML,
+            templateName: this.templateName,
+            products: this.products,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem('emailDesignerState', JSON.stringify(data));
+    }
+    
+    loadFromLocalStorage() {
+        const saved = localStorage.getItem('emailDesignerState');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                if (data.canvasHTML) {
+                    this.canvas.innerHTML = data.canvasHTML;
+                    this.templateName = data.templateName || 'Untitled Template';
+                    this.products = data.products || [];
+                    document.getElementById('templateName').value = this.templateName;
+                    
+                    // Remove empty message if there are elements
+                    const emptyMessage = document.getElementById('emptyCanvasMessage');
+                    if (emptyMessage && this.canvas.children.length > 1) {
+                        emptyMessage.remove();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading saved state:', error);
+            }
+        }
+    }
+    
+    // ============ UTILITY FUNCTIONS ============
+    switchTab(tab) {
+        // Update tab buttons
+        document.querySelectorAll('.sidebar-tab').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.tab === tab) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Show/hide content
+        document.getElementById('elementsTab').style.display = tab === 'elements' ? 'block' : 'none';
+        document.getElementById('layoutTab').style.display = tab === 'layout' ? 'block' : 'none';
+        document.getElementById('templatesTab').style.display = tab === 'templates' ? 'block' : 'none';
+    }
+    
+    updateTemplateName() {
+        this.templateName = document.getElementById('templateName').value || 'Untitled Template';
+        this.saveToLocalStorage();
+    }
+    
+    showPreview() {
+        const canvasHTML = this.canvas.innerHTML;
+        const previewFrame = document.getElementById('previewFrame');
+        const previewDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+        
+        previewDoc.open();
+        previewDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    body { 
+                        padding: 20px; 
+                        background: #f5f5f5; 
+                    }
+                    .email-container {
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background: white;
+                        padding: 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="email-container">
+                    ${canvasHTML}
+                </div>
+            </body>
+            </html>
+        `);
+        previewDoc.close();
+        
+        const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+        modal.show();
+    }
+    
+    sendTestEmail() {
+        bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
+        const modal = new bootstrap.Modal(document.getElementById('testEmailModal'));
+        modal.show();
+    }
+    
+    sendTest() {
+        const email = document.getElementById('testEmailAddress').value.trim();
+        if (!email) {
+            alert('Please enter an email address');
+            return;
+        }
+        
+        // Here you would integrate with your email sending service
+        alert('Test email sent to ' + email + '!');
+        bootstrap.Modal.getInstance(document.getElementById('testEmailModal')).hide();
+        document.getElementById('testEmailAddress').value = '';
+    }
+    
+    saveTemplate() {
+        this.updateTemplateName();
+        
+        // Here you would save to Supabase or export
+        this.showLoading();
+        
+        // Simulate save
+        setTimeout(() => {
+            this.hideLoading();
+            alert('Template "' + this.templateName + '" saved successfully!');
+        }, 1000);
+    }
+    
+    loadStarterTemplate(type) {
+        if (!confirm('Loading a starter template will replace your current design. Continue?')) {
+            return;
+        }
+        
+        switch(type) {
+            case 'welcome':
+                this.loadWelcomeTemplate();
+                break;
+            case 'newsletter':
+                this.loadNewsletterTemplate();
+                break;
+            case 'promo':
+                this.loadPromoTemplate();
+                break;
+            case 'followup':
+                this.loadFollowUpTemplate();
+                break;
+        }
+        
+        this.saveToLocalStorage();
+    }
+    
+    loadWelcomeTemplate() {
+        this.canvas.innerHTML = `
+            <div class="canvas-element" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; color: white;">
+                <h1 style="color: white;">Welcome to Our Community!</h1>
+                <p style="color: rgba(255,255,255,0.9);">We're excited to have you on board.</p>
+            </div>
+            <div class="canvas-element" style="padding: 30px 20px;">
+                <p>Hi {{first_name}},</p>
+                <p>Thank you for joining us! We're thrilled to welcome you to our community of over 10,000 happy customers.</p>
+                <p>Here's what you can expect from us:</p>
+                <ul>
+                    <li>Weekly tips and insights</li>
+                    <li>Exclusive member-only offers</li>
+                    <li>Early access to new features</li>
+                </ul>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="#" style="display: inline-block; padding: 12px 30px; background: #4f46e5; color: white; text-decoration: none; border-radius: 5px;">Get Started</a>
+                </div>
+            </div>
+            <div class="canvas-element" style="background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+                <p>© 2024 Your Company. All rights reserved.</p>
+                <p><a href="{{unsubscribe_link}}">Unsubscribe</a></p>
+            </div>
+        `;
+    }
+    
+    loadNewsletterTemplate() {
+        this.canvas.innerHTML = `
+            <div class="canvas-element" style="padding: 20px; border-bottom: 2px solid #4f46e5;">
+                <h1 style="text-align: center; color: #333;">Monthly Newsletter</h1>
+                <p style="text-align: center; color: #666;">Stay updated with our latest news</p>
+            </div>
+            <div class="canvas-element" style="padding: 20px;">
+                <h2>Featured Article</h2>
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+                <a href="#" style="color: #4f46e5;">Read more →</a>
+            </div>
+            <div class="canvas-element" style="padding: 20px;">
+                <h3>Quick Updates</h3>
+                <ul>
+                    <li>New feature release</li>
+                    <li>Upcoming events</li>
+                    <li>Community highlights</li>
+                </ul>
+            </div>
+            <div class="canvas-element" style="background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+                <p>© 2024 Your Company. All rights reserved.</p>
+                <p><a href="{{unsubscribe_link}}">Unsubscribe</a></p>
+            </div>
+        `;
+    }
+    
+    loadPromoTemplate() {
+        this.canvas.innerHTML = `
+            <div class="canvas-element" style="background: #ff4757; padding: 40px 20px; text-align: center; color: white;">
+                <h1 style="color: white; font-size: 48px;">50% OFF</h1>
+                <p style="font-size: 20px;">Limited Time Offer</p>
+            </div>
+            <div class="canvas-element" style="padding: 30px 20px; text-align: center;">
+                <h2>Don't Miss Out!</h2>
+                <p>Use code <strong>SAVE50</strong> at checkout</p>
+                <div style="margin: 30px 0;">
+                    <a href="#" style="display: inline-block; padding: 15px 40px; background: #ff4757; color: white; text-decoration: none; border-radius: 50px; font-size: 18px; font-weight: bold;">Shop Now</a>
+                </div>
+                <p style="color: #666;">Offer ends soon!</p>
+            </div>
+            <div class="canvas-element" style="background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+                <p>© 2024 Your Company. All rights reserved.</p>
+                <p><a href="{{unsubscribe_link}}">Unsubscribe</a></p>
+            </div>
+        `;
+    }
+    
+    loadFollowUpTemplate() {
+        this.canvas.innerHTML = `
+            <div class="canvas-element" style="padding: 30px 20px;">
+                <p>Hi {{first_name}},</p>
+                <p>We noticed you haven't completed your purchase. Your cart is waiting for you!</p>
+            </div>
+            <div class="canvas-element" style="background: #f8f9fa; padding: 20px; text-align: center;">
+                <h3>Complete Your Order</h3>
+                <p>Your items are still reserved for you.</p>
+                <div style="margin: 20px 0;">
+                    <a href="#" style="display: inline-block; padding: 12px 30px; background: #28a745; color: white; text-decoration: none; border-radius: 5px;">Continue Shopping</a>
+                </div>
+            </div>
+            <div class="canvas-element" style="padding: 20px;">
+                <p>If you have any questions, just reply to this email. We're here to help!</p>
+            </div>
+            <div class="canvas-element" style="background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+                <p>© 2024 Your Company. All rights reserved.</p>
+                <p><a href="{{unsubscribe_link}}">Unsubscribe</a></p>
+            </div>
+        `;
+    }
+    
+    showLoading() {
+        document.getElementById('loadingOverlay').classList.add('show');
+    }
+    
+    hideLoading() {
+        document.getElementById('loadingOverlay').classList.remove('show');
+    }
+    
+    goBack() {
+        if (confirm('Are you sure you want to leave? Your work is auto-saved.')) {
+            window.location.href = 'index.html';
+        }
+    }
+}
+
+// Initialize the designer
+const designer = new EmailDesigner();
+
+// Global functions for HTML onclick attributes
+function addElement(type) {
+    designer.createElement(type, designer.canvas);
+}
+
+function setDevice(device) {
+    designer.setDevice(device);
+}
+
+function zoomIn() {
+    designer.zoomIn();
+}
+
+function zoomOut() {
+    designer.zoomOut();
+}
+
+function undo() {
+    designer.undo();
+}
+
+function redo() {
+    designer.redo();
+}
+
+function switchTab(tab) {
+    designer.switchTab(tab);
+}
+
+function showPreview() {
+    designer.showPreview();
+}
+
+function exportHTML() {
+    designer.exportHTML();
+}
+
+function saveTemplate() {
+    designer.saveTemplate();
+}
+
+function updateTemplateName() {
+    designer.updateTemplateName();
+}
+
+function loadStarterTemplate(type) {
+    designer.loadStarterTemplate(type);
+}
+
+function handleImageUpload(event) {
+    designer.handleImageUpload(event);
+}
+
+function addImageFromUrl() {
+    designer.addImageFromUrl();
+}
+
+function openProductPicker(elementId) {
+    designer.openProductPicker(elementId);
+}
+
+function addProductManually() {
+    designer.addProductManually();
+}
+
+function sendTestEmail() {
+    designer.sendTestEmail();
+}
+
+function sendTest() {
+    designer.sendTest();
+}
+
+function goBack() {
+    designer.goBack();
+}
+</script>
+</body>
+</html>
+
